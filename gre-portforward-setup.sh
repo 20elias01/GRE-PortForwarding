@@ -884,11 +884,6 @@ setup_iran() {
         echo -e "  ${C_GREEN}UDP/$p${C_RESET}  →  ${FOREIGN_GRE_IP}:$p"
     done
 
-    echo
-    line
-    echo -e "${C_CYAN}Useful test:${C_RESET}"
-    echo -e "  ping -I $GRE_NAME -c 4 $FOREIGN_GRE_IP"
-    echo
 }
 
 # ==============================================================
@@ -991,11 +986,6 @@ setup_foreign() {
         echo -e "  ${C_GREEN}$FOREIGN_GRE_IP:$p${C_RESET}  (TCP + UDP)"
     done
 
-    echo
-    line
-    echo -e "${C_CYAN}GRE test:${C_RESET}"
-    echo -e "  ping -c 4 $IRAN_GRE_IP"
-    echo
 }
 
 # ==============================================================
