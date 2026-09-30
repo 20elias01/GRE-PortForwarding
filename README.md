@@ -4,7 +4,7 @@
 ### ⚡ One-Command Installation
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/20elias01/GRE-IPv6Local/main/gre-setup.sh)
+bash <(curl -sL https://raw.githubusercontent.com/20elias01/GRE-PortForwarding/main/gre-portforward-setup.sh)
 ```
 
 
