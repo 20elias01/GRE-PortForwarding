@@ -236,12 +236,44 @@ cleanup_iptables() {
 }
 
 # ==============================================================
+# PUBLIC INTERFACE DETECTION
+# ==============================================================
+
+get_public_interface() {
+
+    local iface
+
+    iface=$(ip route get 1.1.1.1 2>/dev/null | awk '
+        {
+            for (i = 1; i <= NF; i++) {
+                if ($i == "dev") {
+                    print $(i+1)
+                    exit
+                }
+            }
+        }
+    ')
+
+    if [[ -z "$iface" ]]; then
+        error_msg "Could not detect public network interface."
+        return 1
+    fi
+
+    echo "$iface"
+}
+
+# ==============================================================
 # CREATE SELECTIVE IPTABLES
 # ==============================================================
 
 setup_iptables_iran() {
 
     local ports="$1"
+    local PUBLIC_IF
+
+    PUBLIC_IF=$(get_public_interface) || return 1
+
+    info "Detected public interface: $PUBLIC_IF"
 
     cleanup_iptables
 
@@ -306,7 +338,7 @@ setup_iptables_iran() {
         # ------------------------------------------------------
 
         iptables -A "$FWD_CHAIN" \
-            -i eth0 \
+            -i "$PUBLIC_IF" \
             -o "$GRE_NAME" \
             -p tcp \
             -d "$FOREIGN_GRE_IP" \
@@ -317,7 +349,7 @@ setup_iptables_iran() {
 
         iptables -A "$FWD_CHAIN" \
             -i "$GRE_NAME" \
-            -o eth0 \
+            -o "$PUBLIC_IF" \
             -p tcp \
             -s "$FOREIGN_GRE_IP" \
             --sport "$p" \
@@ -330,7 +362,7 @@ setup_iptables_iran() {
         # ------------------------------------------------------
 
         iptables -A "$FWD_CHAIN" \
-            -i eth0 \
+            -i "$PUBLIC_IF" \
             -o "$GRE_NAME" \
             -p udp \
             -d "$FOREIGN_GRE_IP" \
@@ -339,7 +371,7 @@ setup_iptables_iran() {
 
         iptables -A "$FWD_CHAIN" \
             -i "$GRE_NAME" \
-            -o eth0 \
+            -o "$PUBLIC_IF" \
             -p udp \
             -s "$FOREIGN_GRE_IP" \
             --sport "$p" \
@@ -539,6 +571,32 @@ ip link set "$GRE_NAME" up
 sysctl -w net.ipv4.ip_forward=1 >/dev/null
 
 # --------------------------------------------------------------
+# Detect public network interface
+# --------------------------------------------------------------
+
+get_public_interface() {
+
+    local iface
+
+    iface=$(ip route get 1.1.1.1 2>/dev/null | awk '
+        {
+            for (i = 1; i <= NF; i++) {
+                if ($i == "dev") {
+                    print $(i+1)
+                    exit
+                }
+            }
+        }
+    ')
+
+    [[ -n "$iface" ]] || exit 1
+
+    echo "$iface"
+}
+
+PUBLIC_IF=$(get_public_interface) || exit 1
+
+# --------------------------------------------------------------
 # Iran firewall rules
 # --------------------------------------------------------------
 
@@ -583,7 +641,7 @@ if [[ "$ROLE" == "IRAN" ]]; then
             -j MASQUERADE
 
         iptables -A "$FWD_CHAIN" \
-            -i eth0 \
+            -i "$PUBLIC_IF" \
             -o "$GRE_NAME" \
             -p tcp \
             -d "$FOREIGN_GRE_IP" \
@@ -594,7 +652,7 @@ if [[ "$ROLE" == "IRAN" ]]; then
 
         iptables -A "$FWD_CHAIN" \
             -i "$GRE_NAME" \
-            -o eth0 \
+            -o "$PUBLIC_IF" \
             -p tcp \
             -s "$FOREIGN_GRE_IP" \
             --sport "$p" \
@@ -603,7 +661,7 @@ if [[ "$ROLE" == "IRAN" ]]; then
             -j ACCEPT
 
         iptables -A "$FWD_CHAIN" \
-            -i eth0 \
+            -i "$PUBLIC_IF" \
             -o "$GRE_NAME" \
             -p udp \
             -d "$FOREIGN_GRE_IP" \
@@ -612,7 +670,7 @@ if [[ "$ROLE" == "IRAN" ]]; then
 
         iptables -A "$FWD_CHAIN" \
             -i "$GRE_NAME" \
-            -o eth0 \
+            -o "$PUBLIC_IF" \
             -p udp \
             -s "$FOREIGN_GRE_IP" \
             --sport "$p" \
@@ -746,7 +804,7 @@ setup_iran() {
     echo
     echo -e "${C_YELLOW}Enter the ports you want to forward.${C_RESET}"
     echo -e "${C_GRAY}Example: 51820${C_RESET}"
-    echo -e "${C_GRAY}Example: 443 8443 2053 51820${C_RESET}"
+    echo -e "${C_GRAY}Example: 443,8443,2053,51820${C_RESET}"
     echo
     echo -e "${C_WHITE}Each selected port will support BOTH TCP and UDP.${C_RESET}"
     echo
@@ -860,7 +918,7 @@ setup_foreign() {
     echo
     echo -e "${C_YELLOW}Enter the SAME ports configured on Iran.${C_RESET}"
     echo -e "${C_GRAY}Example: 51820${C_RESET}"
-    echo -e "${C_GRAY}Example: 443 8443 2053 51820${C_RESET}"
+    echo -e "${C_GRAY}Example: 443,8443,2053,51820${C_RESET}"
     echo
 
     read -p "Forward ports : " RAW_PORTS
@@ -978,6 +1036,3 @@ case "$CHOICE" in
 esac
 
 echo -e "${C_CYAN}${C_BOLD}Done.${C_RESET}"
-
-
-
