@@ -115,11 +115,15 @@ validate_port() {
     ((p >= 1 && p <= 65535))
 }
 
+
 normalize_ports() {
 
     local input="$1"
     local output=""
     local p
+
+    # Convert comma-separated ports to space-separated
+    input="${input//,/ }"
 
     for p in $input; do
 
@@ -131,12 +135,14 @@ normalize_ports() {
         if [[ ! " $output " =~ " $p " ]]; then
             output="${output:+$output }$p"
         fi
+
     done
 
     [[ -n "$output" ]] || return 1
 
     echo "$output"
 }
+
 
 # ==============================================================
 # SYSCTL
